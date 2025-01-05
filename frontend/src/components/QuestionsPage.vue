@@ -207,8 +207,8 @@ export default {
   max-width: 1000px;
 }
 .question-image {
-  max-width: 60%; /* Ensures the image doesn't overflow the container */
-  margin: 20px 0; /* Adds some space above and below the image */
+  max-width: 60%; 
+  margin: 20px 0; 
 }
 .options-group, .bmi-group, .vas-group {
   margin-bottom: 20px;
@@ -251,14 +251,14 @@ export default {
 .button-group {
   display: flex;
   justify-content: center;
-  gap: 15px; /* Space between buttons */
-  margin-top: 40px; /* Margin above the buttons */
+  gap: 15px; 
+  margin-top: 40px;
 }
 
 .bmi-input {
-  width: 20%; /* Make the input box take full width within its container */
-  max-width: 600px; /* Maximum width for larger screens */
-  height: 40px; /* Height of the input box */
+  width: 20%;
+  max-width: 600px; 
+  height: 40px; 
   margin: 5px 0;
   padding: 10px;
   font-size: 16px;
@@ -268,9 +268,9 @@ export default {
 }
 
 .text-input {
-  width: 100%; /* Make the input box take full width within its container */
-  max-width: 1000px; /* Maximum width for larger screens */
-  height: 40px; /* Height of the input box */
+  width: 100%; 
+  max-width: 1000px; 
+  height: 40px; 
   margin: 5px 0;
   padding: 5px;
   font-size: 18px;
