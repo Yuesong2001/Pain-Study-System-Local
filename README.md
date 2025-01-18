@@ -8,12 +8,15 @@ The backend is implemented using the **FastAPI** package in **Python**. To run t
 2. Execute the following command in the terminal:  
    ```bash
    uvicorn main:app --reload
+   ```
    
 ## Backend - completed version
 （Updated on Jan 18, 2025）
-1. Execute the following command in the terminal:  
+1.  Update the **database configuration** first
+2.  Execute the following command in the terminal:  
    ```bash
    uvicorn main_final:app --reload
+   ```
 
 ## Frontend
 
@@ -123,7 +126,11 @@ Question 1 is a **multi-choice question**:
    - If you select any of the first three options, it will redirect to a **VAS question**.  
    - If you select the last option, it will redirect to a **text question**. After the text question, the flow will proceed to a **BMI question**.
 
-
+## Suggestions for deployment
+（Updated on Jan 18, 2025）
+1. Create the mysql database
+2. update the database configuration in the **main_final.py**
+3. run everything
 
 Let me know if you have any questions or need further assistance.
 
