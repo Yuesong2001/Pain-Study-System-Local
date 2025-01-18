@@ -11,7 +11,7 @@ The backend is implemented using the **FastAPI** package in **Python**. To run t
    
 ## Backend - completed version
 （Updated on Jan 18, 2025）
-Execute the following command in the terminal:  
+1. Execute the following command in the terminal:  
    ```bash
    uvicorn main_final:app --reload
 
