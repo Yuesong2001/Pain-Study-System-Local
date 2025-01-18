@@ -22,12 +22,12 @@ app.add_middleware(
 class Answer(BaseModel):
     question_id: int
     response: List = Field(..., min_items=1)
-
+# please update the following database configuration
 def get_db_connection():
     connection = pymysql.connect(
         host='localhost',        
         user='root',           
-        password='Jiayi0612', 
+        password= # put your password here 
         database='pain_study',  
         charset='utf8mb4')
     return connection
