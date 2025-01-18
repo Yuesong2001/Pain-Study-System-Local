@@ -29,6 +29,7 @@ The first step is to create the database named `pain_study`.
 
 ```sql
 CREATE DATABASE `pain_study`;
+```
 
 **Table Definition**
 1. question_table
@@ -42,6 +43,7 @@ CREATE TABLE `question_table` (
   `logic` mediumtext,
   PRIMARY KEY (`question_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+```
 
 2. user_data
 This table stores user-specific data like weight and height.
@@ -52,7 +54,7 @@ CREATE TABLE `user_data` (
   `height_feet` float DEFAULT NULL,
   `height_inches` float DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
+```
 3. user_response
 This table stores the responses given by users during the study.
 ```sql
@@ -101,7 +103,7 @@ CREATE TABLE `user_response` (
   `submited_dt` datetime NOT NULL,
   PRIMARY KEY (`response_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=16 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
+```
 4. user_table
 This table stores information about the users who participate in the study.
 ```sql
@@ -112,7 +114,7 @@ CREATE TABLE `user_table` (
   `created_dt` datetime NOT NULL,
   PRIMARY KEY (`user_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=35 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
+```
 ## Suggestions for testing
 
 To facilitate testing and frontend improvements, I have included one example for each question type to demonstrate the different types of questions.
