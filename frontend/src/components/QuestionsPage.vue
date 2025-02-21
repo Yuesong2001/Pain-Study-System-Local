@@ -149,6 +149,10 @@
             Thanks for your participation!
           </p>
 
+          <div class="button-group" v-if="question.id === 100">
+          <button @click="closeSurvey">Close Survey</button>
+          </div>
+
           <!-- 提交后显示的信息（如果不是结束页） -->
           <p v-if="submittedAnswer && question.id !== 100" class="message">
             {{ message }}
@@ -239,6 +243,10 @@ export default {
         console.error(error);
         this.message = "Error fetching question";
       }
+    },
+    closeSurvey() {
+    // 直接切回 Welcome 页
+    this.$emit('changePage', 'welcome');
     },
     goBack() {
       if (this.questionHistory.length > 1) {
