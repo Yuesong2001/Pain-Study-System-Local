@@ -27,7 +27,7 @@ def get_db_connection():
     connection = pymysql.connect(
         host='localhost',        
         user='root',           
-        password= # put your password here 
+        password= 'root',# put your password here''
         database='pain_study',  
         charset='utf8mb4')
     return connection
@@ -300,11 +300,23 @@ questions = [
     }
     ]
 
+import datetime
+from typing import Optional
+from collections import defaultdict
+
+from fastapi import FastAPI, Depends
+from pydantic import BaseModel, Field, constr
+import pymysql
 
 class Username(BaseModel):
-    username: str
+    username: constr(min_length=1) = Field(..., description="用户名不能为空")
 
-users = defaultdict(lambda: {'new_user': True,'last_response': None,'information':None,'new_response':None}) 
+users = defaultdict(lambda: {
+    'new_user': True,
+    'last_response': None,
+    'information': None,
+    'new_response': None
+})
 
 # Dependency for username
 def get_current_user(username: Optional[str] = None):
@@ -313,58 +325,134 @@ def get_current_user(username: Optional[str] = None):
     return getattr(get_current_user, 'username', None)
 
 @app.post("/welcome/")
-async def welcome_user(username: Username, username_dependent: Depends = Depends(get_current_user)):
-    get_current_user(username.username)
+async def welcome_user(
+    user_data: Username,
+    username_dependent: str = Depends(get_current_user)
+):
+    # 从请求体中取出 username 字符串
+    username = user_data.username
+
+
+
+    # 如果需要认证
+    get_current_user(username)
+
     connection = get_db_connection()
     cursor = connection.cursor()
-    cursor.execute(f"SELECT * FROM user_table WHERE username = '{username.username}'")
+
+    # 先检查 user_table 中是否存在用户
+    cursor.execute("SELECT * FROM user_table WHERE username = %s", (username,))
     existing_user = cursor.fetchone()
+
     if existing_user:
-        # create entry in users dictionary
-        users[username.username]['new_user'] = False
-        # fetch last response
-        cursor.execute(f"SELECT * FROM user_response WHERE username = '{username.username}' ORDER BY submited_dt DESC LIMIT 1")
+        # 如果 users 字典里没有，就先初始化
+        if username not in users:
+            users[username] = {}
+
+        users[username]['new_user'] = False
+
+        # 获取最后一条 user_response
+        cursor.execute("""
+            SELECT * 
+            FROM user_response
+            WHERE username = %s
+            ORDER BY submited_dt DESC
+            LIMIT 1
+        """, (username,))
         response = cursor.fetchone()
-        columns = [desc[0] for desc in cursor.description]
-        response_dict = dict(zip(columns, response))
-        users[username.username]['last_response'] = response_dict  
-        # fetch user information
-        cursor.execute(f"SELECT * FROM user_data WHERE username = '{username.username}'")
+
+        if response:
+            columns = [desc[0] for desc in cursor.description]
+            response_dict = dict(zip(columns, response))
+            users[username]['last_response'] = response_dict
+        else:
+            response_dict = {}
+            users[username]['last_response'] = None
+
+        # 获取 user_data 信息
+        cursor.execute("SELECT * FROM user_data WHERE username = %s", (username,))
         info = cursor.fetchone()
         if info:
             columns = [desc[0] for desc in cursor.description]
             info_dict = dict(zip(columns, info))
-            users[username.username]['information'] = info_dict
-        # create new response:
-        users[username.username]['new_response'] = {key: '' for key in response_dict}
-        users[username.username]['new_response']['response_id'] = 0
-        users[username.username]['new_response']['user_id'] = response_dict['user_id']
-        users[username.username]['new_response']['username'] = response_dict['username']
-        users[username.username]['new_response']['new_user'] = False
-        #print(users[username.username])
-        return {"message": f"""Welcome back, {username.username}! I hope you’ve had a chance to reflect on the progress you’ve made so far. 
-                Today is another opportunity to take positive steps toward managing your pain and improving your well-being. 
-                Remember, this journey is about steady progress, not perfection, and every small effort counts. 
-                Let’s get started for today!"""}
-    else:
-        cursor.execute(f"INSERT INTO pain_study.user_table (username, created_dt) VALUES('{username.username}','{str(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))}');")
-        cursor.execute(f"SELECT user_id FROM user_table WHERE username = '{username.username}'")
-        user_id = cursor.fetchone()[0]
-        connection.commit()
-        cursor.execute("DESCRIBE user_response")
-        columns = [column[0] for column in cursor.fetchall()]
-        # create new response:
-        users[username.username]['new_response'] = {column: '' for column in columns}
-        users[username.username]['new_response']['response_id'] = 0
-        users[username.username]['new_response']['user_id'] = user_id
-        users[username.username]['new_response']['username'] = username.username
-        users[username.username]['new_response']['new_user'] = True
+            users[username]['information'] = info_dict
+
+        # 创建 new_response
+        if response_dict:
+            users[username]['new_response'] = {key: '' for key in response_dict.keys()}
+            users[username]['new_response']['response_id'] = 0
+            users[username]['new_response']['user_id'] = response_dict.get('user_id', 0)
+            users[username]['new_response']['username'] = response_dict.get('username', username)
+        else:
+            # 如果之前没提交过 response，则用表结构初始化
+            cursor.execute("DESCRIBE user_response")
+            columns = [column[0] for column in cursor.fetchall()]
+            users[username]['new_response'] = {col: '' for col in columns}
+            users[username]['new_response']['response_id'] = 0
+
+            # 注意：只调用一次 fetchone()
+            cursor.execute("SELECT user_id FROM user_table WHERE username = %s", (username,))
+            row = cursor.fetchone()
+            if row:
+                user_id = row[0]
+            else:
+                user_id = 0
+
+            users[username]['new_response']['user_id'] = user_id
+            users[username]['new_response']['username'] = username
+
+        users[username]['new_response']['new_user'] = False
+
         cursor.close()
         connection.close()
-        #print(users[username.username])
-        return {"message": f"""Welcome. Nice to e-meet you, {username.username}. I understand that you are suffering from pain. I’m here to help you. 
-                Today, let’s stay open to learning, be patient with ourselves, and focus on what we can control. Together, you will build the skills and strategies to manage pain and enhance your quality of life. Let’s get started!
-                """}
+
+        return {
+            "message": f"""Welcome back, {username}! I hope you’ve had a chance to reflect on the progress you’ve made so far. 
+                Today is another opportunity to take positive steps toward managing your pain and improving your well-being. 
+                Remember, this journey is about steady progress, not perfection, and every small effort counts. 
+                Let’s get started for today!"""
+        }
+
+    else:
+        # 新用户逻辑
+        cursor.execute(
+            "INSERT INTO user_table (username, created_dt) VALUES(%s, %s)",
+            (username, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+        )
+        connection.commit()
+
+        # 获取新插入的 user_id
+        cursor.execute("SELECT user_id FROM user_table WHERE username = %s", (username,))
+        new_user_row = cursor.fetchone()
+        if new_user_row:
+            user_id = new_user_row[0]
+        else:
+            # 理论上不会出现，但做个防御
+            user_id = 0
+
+        # 初始化 new_response
+        cursor.execute("DESCRIBE user_response")
+        columns = [column[0] for column in cursor.fetchall()]
+
+        if username not in users:
+            users[username] = {}
+
+        users[username]['new_response'] = {col: '' for col in columns}
+        users[username]['new_response']['response_id'] = 0
+        users[username]['new_response']['user_id'] = user_id
+        users[username]['new_response']['username'] = username
+        users[username]['new_response']['new_user'] = True
+
+        cursor.close()
+        connection.close()
+
+        return {
+            "message": f"""Welcome. Nice to e-meet you, {username}. I understand that you are suffering from pain. I’m here to help you. 
+                Today, let’s stay open to learning, be patient with ourselves, and focus on what we can control. 
+                Together, you will build the skills and strategies to manage pain and enhance your quality of life. 
+                Let’s get started!
+                """
+        }
 
 @app.get("/get-question/{question_id}")
 async def get_question(question_id: int):
@@ -394,15 +482,24 @@ async def submit_answer(answer: Answer,current_user: str = Depends(get_current_u
             message = "Got it! I’ll help you with strategies to manage them. Let’s start with your pain."
 
     elif answer.question_id == 2:
-        if 5- int(answer.response[0]) >= 2 or (5- int(answer.response[0]) )/5 >= 1/3:
+        diff_ratio = (5 - int(answer.response[0])) / 5
+        print(f"[DEBUG] diff_ratio = {diff_ratio}")
+
+        user_val = int(answer.response[0])
+        print(f"[DEBUG] user_val = {user_val}")
+
+        if 5 - user_val >= 2 or diff_ratio >= 1 / 3:
+            print("[DEBUG] --> Entering the first if branch (pain improved)")
             next_question_id = 10
-            message = "Although you're still experiencing some pain, it seems like you're making improvements! That’s a great sign. Let’s take a moment to reflect on what’s changed since our last check-in."
-        elif int(answer.response[0])  - 5 >= 2 or (int(answer.response[0])  - 5)/5 >= 1/3:
+            message = "Although you're still experiencing some pain..."
+        elif user_val - 5 >= 2 or (user_val - 5) / 5 >= 1 / 3:
+            print("[DEBUG] --> Entering the second elif branch (pain increased)")
             next_question_id = 13
-            message = "It looks like your pain has increased since our last check-in. I’m sorry to hear that. Let’s see what we can do to help manage it."
+            message = "It looks like your pain has increased..."
         else:
+            print("[DEBUG] --> Entering the else branch (no change)")
             next_question_id = 12
-            message = "It looks like your pain has not changed since our last check-in."
+            message = "It looks like your pain has not changed.."
 
     elif answer.question_id == 10:
         message  = "It sounds like your approach has been helpful for you. "
@@ -467,15 +564,15 @@ async def submit_answer(answer: Answer,current_user: str = Depends(get_current_u
             next_question_id = 4
             message = "Great! Regular activity is important. Let’s move on and talk about something else. "
     elif answer.question_id == 4:
-        if "Low" in answer.response[0]:
+        if answer.response[0] <= 25:
+                next_question_id = 5
+                message = """It looks like you're not hitting the recommended 150 minutes of moderate exercise each week. Increasing your activity could help reduce pain and stress. We suggest that you start with some gentle exercises, such as walking or stretching, or get a plan tailored to your schedule. 
+                                •	Beginner Exercise Plan: Start small, like a 10-minute walk or gentle yoga session. Provide video guides.
+                                •	We can also set daily reminders to help you gradually increase your activity level.
+                                    """
+        elif answer.response[0] > 25 and answer.response[0] <= 35:
             next_question_id = 5
-            message = """It looks like you're not hitting the recommended 150 minutes of moderate exercise each week. Increasing your activity could help reduce pain and stress. We suggest that you start with some gentle exercises, such as walking or stretching, or get a plan tailored to your schedule. 
-                    •	Beginner Exercise Plan: Start small, like a 10-minute walk or gentle yoga session. Provide video guides.
-                    •	We can also set daily reminders to help you gradually increase your activity level.
-                        """
-        elif "Moderate" in answer.response[0]:
-            next_question_id = 5
-            message = """Great! You're staying active, which is key for managing pain. To build on this, we suggest you try adding some core strengthening exercises or flexibility training like yoga. Provide information."""            
+            message = """Great! You're staying active, which is key for managing pain. To build on this, we suggest you try adding some core strengthening exercises or flexibility training like yoga. Provide information."""
         else:
             next_question_id = 5
             message = """You're doing a fantastic job staying active! To ensure your muscles get the recovery they need, we suggest that you try some recovery activities like light stretching or gentle yoga today. Provide information"""
@@ -660,6 +757,9 @@ async def submit_answer(answer: Answer,current_user: str = Depends(get_current_u
     elif answer.question_id == 36:
         message = "That’s a great goal! Let’s schedule some reminders to keep you on track. "
         next_question_id = 33
-    users[current_user]['new_response'][f"answer{answer.question_id}"] = ",".join(answer.response)
+    if answer.question_id != 4:
+        users[current_user]['new_response'][f"answer{answer.question_id}"] = ",".join(answer.response)
+    else:
+        users[current_user]['new_response'][f"answer{answer.question_id}"] = str(answer.response[0])
     return {"message": message, "next_question_id": next_question_id}
 
